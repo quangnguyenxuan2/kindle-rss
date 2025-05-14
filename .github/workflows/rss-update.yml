@@ -1,27 +1,33 @@
-import feedparser
-import os
+name: Update RSS and Build HTML
 
-# Danh sách các nguồn báo
-feeds = {
-    "VnExpress": "https://vnexpress.net/rss/tin-moi-nhat.rss",
-    "Tuổi Trẻ": "https://tuoitre.vn/rss/tin-moi-nhat.rss",
-    "Thanh Niên": "https://thanhnien.vn/rss/home.rss",
-    "24h": "https://cdn.24h.com.vn/upload/rss/trangchu24h.rss"
-}
+on:
+  schedule:
+    - cron: '0 * * * *'  # chạy mỗi giờ
+  workflow_dispatch:
 
-# Tạo thư mục xuất HTML
-os.makedirs("public", exist_ok=True)
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v3
 
-# Tạo file index
-with open("public/index.html", "w", encoding="utf-8") as f:
-    f.write("<html><head><meta charset='UTF-8'><title>Báo mới</title></head><body>")
-    f.write("<h1>Tin tức mới nhất (Tự động cập nhật mỗi 2 tiếng)</h1>")
+      - name: Cài Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-    for name, url in feeds.items():
-        f.write(f"<h2>{name}</h2><ul>")
-        feed = feedparser.parse(url)
-        for entry in feed.entries[:10]:
-            f.write(f"<li><a href='{entry.link}'>{entry.title}</a></li>")
-        f.write("</ul>")
+      - name: Cài thư viện Python
+        run: pip install feedparser
 
-    f.write("</body></html>")
+      - name: Chạy script lấy tin
+        run: python rss_to_html.py
+
+      - name: Deploy lên Netlify
+        uses: nwtgck/actions-netlify@v1.1.4
+        with:
+          publish-dir: ./public
+          production-deploy: true
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
